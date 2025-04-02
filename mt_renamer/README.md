@@ -8,7 +8,7 @@ A Maya tool thta helps you with renaming one or more objects in maya.
 
 ## Features
 
-- rename a single object
+- rename selected object(s)
 - hit enter to execture
 - works on multiple selection
 - auto_numbering

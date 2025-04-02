@@ -9,7 +9,7 @@ A Maya utility that converts keyframe animation to editable motion paths.
 
 ## Features
 
-- Convert complex keyframe animation to smooth, editable paths
+- Convert complex keyframe animation to editable paths
 - Customize sampling rate to balance detail and performance
 - Maintain proper orientation along the motion path
 - Works with any animated transform node
@@ -51,14 +51,3 @@ mta.show_gui()
 
 After conversion, you can edit the generated curve to adjust the animation path while maintaining proper orientation.
 
-## Requirements
-
-- Maya 2020 or higher
-
-## License
-
-This project is licensed under the MIT License.
-
----
-
-Created by LostFocusRemedies
