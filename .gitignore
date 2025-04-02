@@ -1,0 +1,12 @@
+# Python compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Maya files
+*.mb
+*.ma
+
+# OS specific files
+.DS_Store
+Thumbs.db
