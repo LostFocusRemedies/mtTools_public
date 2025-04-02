@@ -1,4 +1,6 @@
 # Maya Keyframe Randomizer
+![Maya Version](https://img.shields.io/badge/Maya-2020%2B-informational)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 A Maya tool that allows animators to add controlled randomness to selected keyframes, creating more organic and natural animations.
 

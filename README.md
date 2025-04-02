@@ -1,4 +1,6 @@
 # mtTools Public
+![Maya Version](https://img.shields.io/badge/Maya-2020%2B-informational)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 A collection of Maya tools and utilities created by Lost Focus Remedies.  
 That's a bit of a showcase of what I can do. 
