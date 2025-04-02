@@ -5,7 +5,7 @@
 
 A Maya utility that converts keyframe animation to editable motion paths.
 
-![Animation to Path Tool](https://via.placeholder.com/600x300?text=Animation+to+Path+Tool)
+![Animation to Path Tool](screenshots/gui_example.png)
 
 ## Features
 
