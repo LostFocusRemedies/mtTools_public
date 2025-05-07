@@ -23,57 +23,41 @@ def doIt(ground:str = "Ground"):
     )
     
     if hit_result: 
-    # move_to_point(sel[0], hit_points[0], hit_faces[0])
         orient_to_normal(sel[0], groundShape, hit_faces[0], hit_points[0])
     else: 
         pm.warning("couldn't find any intersection!")
 
-def move_to_point(obj, hit_point, hit_face):
-    offset = obj.getTranslation() - obj.getBoundingBoxMin()
-    hit_point_offsetted = pm.dt.Vector(hit_point.x, hit_point.y + offset.y, hit_point.z)
-    obj.setTranslation(vector = hit_point_offsetted,space = "world")
-    # obj.ty.set(obj.ty.get()+offset.y) # this works for basic cases. 
+def move_to_point(obj, hit_point, hit_face, bounding_box=False):
+    if bounding_box == True: 
+        offset = obj.getTranslation() - obj.getBoundingBoxMin()
+        hit_point = pm.dt.Vector(hit_point.x, hit_point.y + offset.y, hit_point.z)
+    else: 
+        hit_point = pm.dt.Vector(hit_point)
+    obj.setTranslation(vector = hit_point,space = "world")
     
 def orient_to_normal(obj, groundShape, hit_face_id, hit_point):
-    y_axis = groundShape.getNormals(space="transform")[hit_face_id]
-
+    obj_side    = obj.getTransformation()[0][:3]
+    obj_up      = pm.dt.Vector(obj.getTransformation()[1][:3])
+    obj_forward = pm.dt.Vector(obj.getTransformation()[2][:3])
+    obj_pos     = obj.getTransformation()[3][:3]
     
+    hit_point = pm.dt.Vector(hit_point)
     
-    hit_loc = pm.spaceLocator(n="hit_point", p=hit_point)
-    y_loc = pm.spaceLocator(n="y_loc", p=y_axis)
-    return(False)
-    x_loc = pm.spaceLocator(n="x_loc", p=x_axis)
-    z_loc = pm.spaceLocator(n="z_loc", p=z_axis)
-    print(f"x_axis : {x_axis}")
-    print(f"y_axis : {y_axis}")
-    print(f"z_axis : {z_axis}")
+    hit_up = groundShape.getPolygonNormal(hit_face_id).normal()
+    hit_forward = obj_forward.normal()
+    hit_side = hit_up.cross(hit_forward).normal()
+    hit_up = hit_forward.cross(hit_side).normal()
     
-    
-    
-    
-    hit_normal = groundShape.getNormals(space="world")[hit_face_id]
-    hit_direction = pm.dt.Vector(hit_normal)
-    up_vector = pm.dt.Vector(0,1,0)
-   
-    z_axis = hit_direction
-    x_axis = up_vector.cross(z_axis).normal()
-    y_axis = z_axis.cross(x_axis)
-    
-    transformMatrix = [
-        x_axis.x, x_axis.y, x_axis.z, 0,
-        y_axis.x, y_axis.y, y_axis.z, 0,
-        z_axis.x, z_axis.y, z_axis.z, 0,
-        hit_point.x, hit_point.y, hit_point.z, 1 
+    hit_matrix = [
+        hit_side[0],    hit_side[1],    hit_side[2],    0.0,
+        hit_up[0],      hit_up[1],      hit_up[2],      0.0,
+        hit_forward[0], hit_forward[1], hit_forward[2], 0.0,
+        0.0,   0.0,   0.0,   1.0
     ]
     
-    obj.setTransformation(transformMatrix)
+    obj.setMatrix(hit_matrix)
+    obj.setTranslation(vector=hit_point, space = "world")
     
-
-
-
-
-
-
 
 if __name__ == "__main__":
     doIt( ground = "Ground")
