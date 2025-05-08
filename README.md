@@ -17,6 +17,9 @@ A tool to convert keyframe animation to a curve path. Useful in situation where 
 A small tool to help you rename multiple objects, handling padding numbering aswell. 
 Especially useful when assigned to F2 shortcut, similar to OS behaviour. 
 
+### Snap to Ground
+A Tool to snap selected object(s) to a ground underneath. 
+
 ## Installation
 
 Each tool can be installed independently. See the README in each tool's directory for specific installation instructions.

@@ -3,8 +3,10 @@
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 A Maya tool to snap selected object to the ground. 
+Especially useful for characters feet.
 
-![Maya Keyframe Randomizer](screenshots/gui_example.png)
+![Maya Ground Snapper](screenshots/gui_example.png)  
+![Maya Ground Snapper](screenshots/gui_walkthrough.gif)
 
 ## Features
 

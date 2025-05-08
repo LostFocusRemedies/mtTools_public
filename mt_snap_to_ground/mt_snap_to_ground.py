@@ -11,7 +11,7 @@ Usage:
 # UI LESS, for your hotkey or shelfbutton, for quick interation
 import mtTools_public.mt_snap_to_ground as mtsg
 snapper = mtsg.GroundSnapper()
-snapper.updateGround("Ground") # add here the name of your ground
+snapper.set_ground("Ground") # add here the name of your ground
 snapper.doIt()
 
 # GUI
@@ -33,7 +33,7 @@ from pprint import pprint
 class GroundSnapper:
     def __init__(self, *args, **kwargs):
         self.ground = None
-        self.updateGround(ground="Ground")  # TO BE UPDATED!!!
+        self.set_ground(ground="Ground")  # TO BE UPDATED!!!
         self.ray_direction = pm.dt.Vector(
             0, -1, 0
         )  # assumes the user wants to match straight down -Y
@@ -112,7 +112,7 @@ class GroundSnapper:
         else:
             return selection
 
-    def updateGround(self, ground):
+    def set_ground(self, ground):
         # check if it needs conversion to pynode.
         if isinstance(ground, str):
             self.ground = pm.PyNode(ground)
@@ -144,12 +144,12 @@ class GroundSnapperGUI:
                     self.align_rotation = pm.checkBox(label="Align to Slope",   value=True,changeCommand=self.set_settings)
                     self.align_position = pm.checkBox(label="Align Position",   value=True,changeCommand=self.set_settings)
                     
-                    self.use_bb = pm.checkBox(label="Use Bounding Box", value=True,changeCommand=self.set_settings)
+                    self.use_bb = pm.checkBox(label="Use Bounding Box", value=True, changeCommand=self.set_offset_settings)
                     with pm.rowLayout(numberOfColumns=2, adjustableColumn=1, columnWidth2=(50, 50)):
                         pm.text(label="Y offset: ")
-                        self.offset_position = pm.floatField(value=0.0,changeCommand=self.set_offset_settings)
+                        self.offset_position = pm.floatField(value=0.0,changeCommand=self.set_offset_settings, enable=False)
 
-                self.snap_btn = pm.button(label="Snap Selection to Ground",command=self.Snapper.doIt,height=40,enable=False,)
+                self.snap_btn = pm.button(label="Snap Selection to Ground",command=self.Snapper.doIt,height=40, enable=False,)
 
                 # footer
                 pm.separator()
@@ -162,6 +162,7 @@ class GroundSnapperGUI:
     def set_offset_settings(self, *args):
         use_bb = self.use_bb.getValue() # for readability
         self.Snapper.use_bb = use_bb
+        self.offset_position.setEnable(not use_bb)
         if not use_bb: 
             self.Snapper.offset = self.offset_position.getValue()
         
@@ -173,7 +174,7 @@ class GroundSnapperGUI:
             pm.warning("Nothing selected. Please select a ground object.")
             return False
 
-        self.Snapper.updateGround(ground=selection[0])
+        self.Snapper.set_ground(ground=selection[0])
         self.ground_text.setText(str(selection[0]))
         self.snap_btn.setEnable(True)
 
@@ -185,6 +186,6 @@ class GroundSnapperGUI:
 if __name__ == "__main__":
     # doIt(ground="Ground")
     snapper = GroundSnapper()
-    snapper.updateGround("Ground")
+    snapper.set_ground("Ground")
     snapper.doIt()
 
