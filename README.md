@@ -20,6 +20,9 @@ Especially useful when assigned to F2 shortcut, similar to OS behaviour.
 ### Snap to Ground
 A Tool to snap selected object(s) to a ground underneath. 
 
+### Camera Label Creator
+A Tool to create text attached to camera every x frames. It's useful in early production, when populating library of poses for characters, and keep everything neat. 
+
 ## Installation
 
 Each tool can be installed independently. See the README in each tool's directory for specific installation instructions.
