@@ -10,11 +10,12 @@ Especially useful for characters feet.
 
 ## Features
 
-- snap object position to closest Ray casted point on world -y
-- snap object to hit_face normal slope, maintaining the original direction
-- add custom offset from ground, to fine tune intersection
-- can use the object bounding box as offset distance 
-- practical GUI
+- Snap objects to any mesh surface
+- Align rotation to match ground slope
+- Handle bounding box offsets
+- Support for rigged controls with Offset Parent Matrix
+- Works with both regular transforms and hierarchies
+- Simple UI or command-line usage for hotkeys
 
 
 ## Installation
@@ -40,7 +41,5 @@ Especially useful for characters feet.
 
 
 ## TODO:
-Please remeber this is the very first working version of the tool, so not all cases are covered.
-In particular, the way the alignment to slope is implemented covers only one case. 
-I will cover all different scenarios in the future. 
+Please remember this is the very first working version of the tool, so not all cases are covered.
 

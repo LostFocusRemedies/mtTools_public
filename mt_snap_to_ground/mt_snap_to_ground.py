@@ -19,92 +19,125 @@ import mtTools_public.mt_snap_to_ground.mt_snap_to_ground as mtsg
 snapperUi = mtsg.GroundSnapperGUI()
 snapperUi.show()
 
-
-
-Known Issues:
-- the alignment will work 90% of the cases, but if the Y-axis of the selected object is the same as the face normal Y-axis, then there likely will be issues.
-
 """
 
-import pymel.core as pm
+import logging
 from pprint import pprint
+import pymel.core as pm
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 class GroundSnapper:
     def __init__(self, *args, **kwargs):
+        self.obj = None
         self.ground = None
-        self.set_ground(ground="Ground")  # TO BE UPDATED!!!
-        self.ray_direction = pm.dt.Vector(
-            0, -1, 0
-        )  # assumes the user wants to match straight down -Y
+        self.ground_shape = None
+        self.down = pm.dt.Vector(0, -1, 0)
+        self.up = pm.dt.Vector(0, 1, 0)
         self.align_rotation = True
         self.align_position = True
-        self.use_bb = True # is the tY offset calculated using the Bounding Box? 
-        self.offset = 0.0  # otherwise use a custom value. 
+        self.use_bb = True  # is the tY offset calculated using the Bounding Box?
+        self.user_offset = 0.0  # tY offset dictated by the user
 
-    def doIt(self, *args):
-        selection = self.getSelectedObjects()
+    def do_it(self, *args):
+        # TODO ! need to decouple the obj selection from the raycast execution
+        selection = self.get_selected_objects()
         for s in selection:
-            self.rayCast(obj=s)
+            self.raycast(obj=s)
 
-    def rayCast(self, obj, orient: bool = True, position: bool = True):
-        ray_source = pm.dt.Point(pm.xform(obj, q=True, t=True, ws=True))
+    def raycast(self, obj, orient: bool = True, position: bool = True):
+        
+        ray_source = obj.getTranslation(space="world")
+                
+        logger.debug(f"ray_source = {ray_source}")
+        logger.debug(f"ray_direction = {self.down}")
 
-        hit_result, hit_points, hit_faces = self.ground_shape.intersect(
+        hit, hit_points, hit_faces = self.ground_shape.intersect(
             raySource=ray_source,
-            rayDirection=self.ray_direction,
+            rayDirection=self.down,
             tolerance=1e-10,
             space="world",
-        )  # to note that hit_points and hit_faces are always lists, hence the plural naming.
+        )
 
-        # TODO: here i need to account for all cases where this will not work, so basically
-        # if obj_up dot hit_up is 1 or very close to 1 (directions are too similar), 
-        # i need to start the calculation using the forward axis.
-        # same goes for the other two axis, need to build all the tests. 
+        if not hit:
+            logger.warning("No points are projecting to ground.")
+            return False
+
+        # definition of what we need to construct the new matrix
+        projected_matrix = pm.dt.TransformationMatrix() # the containing matrix
+        obj_orient_corrected = pm.dt.EulerRotation(0, obj.getRotation().y, 0) # we are only interested in the direction of the obj, represented by rotY
         
-        if hit_result: 
-            obj_pos = obj.getTransformation()[3][:3]
-            obj_side = obj.getTransformation()[0][:3]
-            obj_up = pm.dt.Vector(obj.getTransformation()[1][:3])
-            obj_forward = pm.dt.Vector(obj.getTransformation()[2][:3])
-
-            hit_point = pm.dt.Vector(hit_points[0])
-
-            hit_up = self.ground_shape.getPolygonNormal(hit_faces[0]).normal()
-            hit_forward = obj_forward.normal()
-            hit_side = hit_up.cross(hit_forward).normal()
-            hit_up = hit_forward.cross(hit_side).normal()
-
-            hit_matrix = [
-                hit_side[0],
-                hit_side[1],
-                hit_side[2],
-                0.0,
-                hit_up[0],
-                hit_up[1],
-                hit_up[2],
-                0.0,
-                hit_forward[0],
-                hit_forward[1],
-                hit_forward[2],
-                0.0,
-                obj_pos[0],
-                obj_pos[1],
-                obj_pos[2],
-                1.0,
-            ]
-
-            if self.align_rotation:
-                obj.setMatrix(hit_matrix)
+        hit_normal = self.ground_shape.getPolygonNormal(hit_faces[0]) # get the normal of the hit face
+        hit_normal = pm.dt.Vector(hit_normal)*self.ground.getMatrix() # ensure we're getting it in world space
+        hit_normal.normalize() # ensure it's a direction
+        
+        angle = pm.dt.Quaternion(self.up, hit_normal) # angle between Y and the normal 
+        if self.align_rotation:
+            projected_rotation = obj_orient_corrected.asQuaternion() * angle
+        else: 
+            projected_rotation = obj.getRotation()
+            
+        if self.align_position: 
+            # Always use ground hit point for alignment
+            projected_position = hit_points[0]
+            if self.use_bb:
+                projected_position += self.get_offset_from_bottom(obj=obj, ray_source=hit_points[0])
+            projected_position += pm.dt.Vector(0, self.user_offset, 0)
+        else: 
+            # Keep original position
+            projected_position = obj.getTranslation(space="world")    
+                        
+        projected_scale = obj.getScale() # for consistency in readability
+        
+        projected_matrix.setTranslation(projected_position, space="world")
+        projected_matrix.setRotation(projected_rotation)
+        projected_matrix.setScale(projected_scale, space="world")
+        
+        logger.debug(f"matrix: {projected_matrix}")
+        
+        # finally apply the matrix
+        # obj.setMatrix(projected_matrix)
+        # Handle rigged objects with Offset Parent Matrix differently
+        if obj.hasAttr('offsetParentMatrix'):
+            # Use direct world space transforms for rigged controls
             if self.align_position:
-                if self.use_bb: # update the offset to match the bottom of the bounding box
-                    bb = obj.getBoundingBoxMin(space="object")
-                    self.offset = abs(obj_pos[1] - bb[1]) 
-                hit_point[1] += self.offset
-                obj.setTranslation(vector=hit_point, space="world")
+                obj.setTranslation(projected_position, space="world")
+            if self.align_rotation:
+                obj.setRotation(projected_rotation, space="world")
+        else:
+            # For regular objects
+            if obj.getParent():
+                # Convert to parent space
+                parent_inverse = obj.getParent().getMatrix().inverse()
+                local_matrix = projected_matrix * parent_inverse
+                obj.setMatrix(local_matrix)
+            else:
+                # No parent, use as is
+                obj.setMatrix(projected_matrix)
+                
+
+    def get_offset_from_bottom(self, obj, ray_source, *args):
+        obj_shape = obj.getShape()
+        
+        if isinstance(obj_shape, pm.nt.NurbsCurve): # if nurbs curve do nothing
+            return(0)
+        
+        hit, hit_points, hit_faces = obj_shape.intersect(
+            raySource=ray_source,
+            rayDirection=self.up,
+            tolerance=1e-10,
+            space="world",
+        )
+        
+        y = abs(hit_points[0].y - obj.getTranslation().y)
+        
+        return(pm.dt.Vector(0,y,0))
+
 
     # getselection with error handling
-    def getSelectedObjects(self):
+    def get_selected_objects(self):
         selection = pm.selected()
         if not selection:
             pm.error("Nothing is selected, I need at least one object selected.")
@@ -135,37 +168,41 @@ class GroundSnapperGUI:
             with pm.columnLayout(rowSpacing=10,adj=True,columnAttach=("both", 16),columnOffset=("both", 16),):
                 pm.text(l="First assign the ground object, then select your objects and snap them to it.",align="left",)
                 pm.separator()
-                
+
                 with pm.rowLayout(numberOfColumns=2, adjustableColumn=1, columnWidth2=(250, 50)):
                     self.ground_text = pm.textField(editable=False)
                     pm.button(label="Get Ground", command=self.set_ground)
 
                 with pm.columnLayout():
-                    self.align_rotation = pm.checkBox(label="Align to Slope",   value=True,changeCommand=self.set_settings)
-                    self.align_position = pm.checkBox(label="Align Position",   value=True,changeCommand=self.set_settings)
-                    
-                    self.use_bb = pm.checkBox(label="Use Bounding Box", value=True, changeCommand=self.set_offset_settings)
+                    self.align_rotation = pm.checkBox(label="Align to Slope",value=True,changeCommand=self.set_settings,)
+                    self.align_position = pm.checkBox(label="Align Position",value=True,changeCommand=self.set_settings,)
+
+                    self.use_bb = pm.checkBox(label="Use Bounding Box",value=True,changeCommand=self.set_offset_settings,)
                     with pm.rowLayout(numberOfColumns=2, adjustableColumn=1, columnWidth2=(50, 50)):
                         pm.text(label="Y offset: ")
-                        self.offset_position = pm.floatField(value=0.0,changeCommand=self.set_offset_settings, enable=False)
+                        self.offset_position = pm.floatField(value=0.0,changeCommand=self.set_offset_settings,enable=False,)
 
-                self.snap_btn = pm.button(label="Snap Selection to Ground",command=self.Snapper.doIt,height=40, enable=False,)
+                self.snap_btn = pm.button(
+                    label="Snap Selection to Ground",
+                    command=self.Snapper.do_it,
+                    height=40,
+                    enable=False,
+                )
 
                 # footer
                 pm.separator()
-                pm.text(label="mtTools - Ground Snapper v1.0", align="center")
+                pm.text(label="mtTools - Ground Snapper v1.1", align="center")
 
     def set_settings(self, *args):
         self.Snapper.align_rotation = self.align_rotation.getValue()
         self.Snapper.align_position = self.align_position.getValue()
-        
+
     def set_offset_settings(self, *args):
-        use_bb = self.use_bb.getValue() # for readability
+        use_bb = self.use_bb.getValue()  # for readability
         self.Snapper.use_bb = use_bb
         self.offset_position.setEnable(not use_bb)
-        if not use_bb: 
-            self.Snapper.offset = self.offset_position.getValue()
-        
+        if not use_bb:
+            self.Snapper.user_offset = self.offset_position.getValue()
 
     def set_ground(self, *args):
         # Get the selected object and set it as the ground
@@ -188,4 +225,3 @@ if __name__ == "__main__":
     snapper = GroundSnapper()
     snapper.set_ground("Ground")
     snapper.doIt()
-
