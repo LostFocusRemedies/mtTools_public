@@ -185,9 +185,10 @@ class LabelCreator(object):
 
 #----------------------------------------------------------------------------------------------------------- UI
 # UI
-
-from PySide2 import QtCore, QtWidgets, QtGui
-from shiboken2 import wrapInstance
+# updated to use PySide6 and Shiboken6 for Maya 2022 and later
+#----------------------------------------------------------------------------------------------------------- UI 
+from PySide6 import QtCore, QtWidgets, QtGui
+from shiboken6 import wrapInstance
 
 import maya.OpenMaya as om
 import maya.OpenMayaUI as omui
