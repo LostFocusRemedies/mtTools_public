@@ -26,6 +26,9 @@ A Tool to create text attached to camera every x frames. It's useful in early pr
 ### Reset Attribute
 An animation to reset rig control attributes to their default value.
 
+### IKFK Fast
+A polite IKFK snapper, that's designed to be easy to configure, and performant.
+
 ## Installation
 
 Each tool can be installed independently. See the README in each tool's directory for specific installation instructions.
