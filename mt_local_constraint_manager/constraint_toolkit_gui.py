@@ -1,5 +1,5 @@
 """
-import mtTools.tools.animation.local_constraints_manager.constraints_toolkit_gui as ct
+import mttools_public.mt_local_constraints_manager.constraints_toolkit_gui as ct
 from imp import reload
 reload(ct)
 

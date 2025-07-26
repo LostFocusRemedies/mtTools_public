@@ -29,6 +29,9 @@ An animation to reset rig control attributes to their default value.
 ### IKFK Fast
 A polite IKFK snapper, that's designed to be easy to configure, and performant.
 
+### Local Constraint Manager
+A utility windows that lists all the constraints created in scene by the animator. Will help in confusing times. 
+
 ## Installation
 
 Each tool can be installed independently. See the README in each tool's directory for specific installation instructions.
