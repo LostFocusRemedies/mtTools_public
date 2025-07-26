@@ -87,6 +87,13 @@ ARM_CONTROLS_TAGS = frozenset({
 })
 ```
 
+That might be confusing at the beginning, but the "control tags" are the most unique terms contained in the control name. 
+In other words, what's left in a control name when you remove the namespace, the side, and any pipeline specific prefix or suffix. It's the base tag. 
+
+To find them, you may do some string and list operations based on you selection of the entire limb/part. 
+I "may" provide some utilies to help with that in the future, but that's not planned. 
+
+
 ## Requirements
 
 - Maya 2020 or later
