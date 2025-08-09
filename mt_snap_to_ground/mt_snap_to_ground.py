@@ -8,11 +8,11 @@ At the moment the scripts assumes a direction straight down -Y, as it'll solve 9
 I may update the code in the future.
 
 Usage:
-# UI LESS, for your hotkey or shelfbutton, for quick interation
+# UI LESS, for your hotkey or shelfbutton, for quick iteration
 import mtTools_public.mt_snap_to_ground as mtsg
 snapper = mtsg.GroundSnapper()
-snapper.set_ground("Ground") # add here the name of your ground
-snapper.doIt()
+snapper.set_ground("Ground")  # add here the name of your ground
+snapper.do_it()  # or snapper.doIt() for backward compatibility
 
 # GUI
 import mtTools_public.mt_snap_to_ground.mt_snap_to_ground as mtsg
@@ -47,10 +47,18 @@ class GroundSnapper:
         for s in selection:
             self.raycast(obj=s)
 
+    # Backward compatibility (original docstring / external calls)
+    def doIt(self, *args):  # noqa: N802 (Maya style camelCase retained for compatibility)
+        return self.do_it(*args)
+
     def raycast(self, obj, orient: bool = True, position: bool = True):
-        
+        # Ensure ground is set
+        if not self.ground_shape:
+            logger.warning("Ground not set. Call set_ground() before raycast.")
+            return False
+
         ray_source = obj.getTranslation(space="world")
-                
+
         logger.debug(f"ray_source = {ray_source}")
         logger.debug(f"ray_direction = {self.down}")
 
@@ -66,33 +74,39 @@ class GroundSnapper:
             return False
 
         # definition of what we need to construct the new matrix
-        projected_matrix = pm.dt.TransformationMatrix() # the containing matrix
-        obj_orient_corrected = pm.dt.EulerRotation(0, obj.getRotation().y, 0) # we are only interested in the direction of the obj, represented by rotY
-        
-        hit_normal = self.ground_shape.getPolygonNormal(hit_faces[0]) # get the normal of the hit face
-        hit_normal = pm.dt.Vector(hit_normal)*self.ground.getMatrix() # ensure we're getting it in world space
-        hit_normal.normalize() # ensure it's a direction
-        
-        angle = pm.dt.Quaternion(self.up, hit_normal) # angle between Y and the normal 
+        projected_matrix = pm.dt.TransformationMatrix()  # the containing matrix
+        obj_rot = obj.getRotation()  # current Euler rotation
+        obj_orient_corrected = pm.dt.EulerRotation(0, obj_rot.y, 0)  # only Y direction matters for facing
+
+        # Get world-space face normal directly
+        try:
+            hit_normal = self.ground_shape.getPolygonNormal(hit_faces[0], space='world')
+        except TypeError:
+            # Fallback for older API versions without 'space' kwarg
+            hit_normal = self.ground_shape.getPolygonNormal(hit_faces[0])
+        hit_normal = pm.dt.Vector(hit_normal).normal()
+
+        # Quaternion representing rotation from +Y to the hit normal
+        rot_to_normal = pm.dt.Quaternion(self.up, hit_normal)
         if self.align_rotation:
-            projected_rotation = obj_orient_corrected.asQuaternion() * angle
-        else: 
-            projected_rotation = obj.getRotation()
+            projected_rotation_quat = obj_orient_corrected.asQuaternion() * rot_to_normal
+        else:
+            projected_rotation_quat = obj_rot.asQuaternion()
             
-        if self.align_position: 
+        if self.align_position:
             # Always use ground hit point for alignment
             projected_position = hit_points[0]
             if self.use_bb:
                 projected_position += self.get_offset_from_bottom(obj=obj, ray_source=hit_points[0])
             projected_position += pm.dt.Vector(0, self.user_offset, 0)
-        else: 
+        else:
             # Keep original position
-            projected_position = obj.getTranslation(space="world")    
-                        
-        projected_scale = obj.getScale() # for consistency in readability
-        
+            projected_position = obj.getTranslation(space="world")
+
+        projected_scale = obj.getScale()  # for consistency in readability
+
         projected_matrix.setTranslation(projected_position, space="world")
-        projected_matrix.setRotation(projected_rotation)
+        projected_matrix.setRotation(projected_rotation_quat.asEulerRotation())
         projected_matrix.setScale(projected_scale, space="world")
         
         logger.debug(f"matrix: {projected_matrix}")
@@ -105,13 +119,13 @@ class GroundSnapper:
             if self.align_position:
                 obj.setTranslation(projected_position, space="world")
             if self.align_rotation:
-                obj.setRotation(projected_rotation, space="world")
+                obj.setRotation(projected_rotation_quat, space="world")
         else:
             # For regular objects
             if obj.getParent():
                 # Convert to parent space
                 parent_inverse = obj.getParent().getMatrix().inverse()
-                local_matrix = projected_matrix * parent_inverse
+                local_matrix = parent_inverse * projected_matrix
                 obj.setMatrix(local_matrix)
             else:
                 # No parent, use as is
@@ -120,20 +134,22 @@ class GroundSnapper:
 
     def get_offset_from_bottom(self, obj, ray_source, *args):
         obj_shape = obj.getShape()
-        
-        if isinstance(obj_shape, pm.nt.NurbsCurve): # if nurbs curve do nothing
-            return(0)
-        
+
+        if isinstance(obj_shape, pm.nt.NurbsCurve):  # if nurbs curve do nothing
+            return pm.dt.Vector(0, 0, 0)
+
         hit, hit_points, hit_faces = obj_shape.intersect(
             raySource=ray_source,
             rayDirection=self.up,
             tolerance=1e-10,
             space="world",
         )
-        
+        if not hit:
+            return pm.dt.Vector(0, 0, 0)
+
         y = abs(hit_points[0].y - obj.getTranslation().y)
-        
-        return(pm.dt.Vector(0,y,0))
+
+        return pm.dt.Vector(0, y, 0)
 
 
     # getselection with error handling
